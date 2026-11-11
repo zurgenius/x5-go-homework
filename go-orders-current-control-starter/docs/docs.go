@@ -253,9 +253,13 @@ const docTemplate = `{
     "definitions": {
         "handler.createOrderRequest": {
             "type": "object",
+            "required": [
+                "items"
+            ],
             "properties": {
                 "items": {
                     "type": "array",
+                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/handler.itemRequest"
                     }
@@ -275,15 +279,23 @@ const docTemplate = `{
         },
         "handler.itemRequest": {
             "type": "object",
+            "required": [
+                "name",
+                "price",
+                "quantity"
+            ],
             "properties": {
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "minLength": 1
                 },
                 "price": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "quantity": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
@@ -338,9 +350,22 @@ const docTemplate = `{
         },
         "handler.updateStatusRequest": {
             "type": "object",
+            "required": [
+                "status"
+            ],
             "properties": {
                 "status": {
-                    "$ref": "#/definitions/order.Status"
+                    "enum": [
+                        "new",
+                        "processing",
+                        "completed",
+                        "cancelled"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/order.Status"
+                        }
+                    ]
                 }
             }
         },

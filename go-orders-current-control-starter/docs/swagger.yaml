@@ -5,7 +5,10 @@ definitions:
       items:
         items:
           $ref: '#/definitions/handler.itemRequest'
+        minItems: 1
         type: array
+    required:
+    - items
     type: object
   handler.errorResponse:
     properties:
@@ -17,11 +20,18 @@ definitions:
   handler.itemRequest:
     properties:
       name:
+        minLength: 1
         type: string
       price:
+        minimum: 1
         type: integer
       quantity:
+        minimum: 1
         type: integer
+    required:
+    - name
+    - price
+    - quantity
     type: object
   handler.itemResponse:
     properties:
@@ -58,7 +68,15 @@ definitions:
   handler.updateStatusRequest:
     properties:
       status:
-        $ref: '#/definitions/order.Status'
+        allOf:
+        - $ref: '#/definitions/order.Status'
+        enum:
+        - new
+        - processing
+        - completed
+        - cancelled
+    required:
+    - status
     type: object
   order.Status:
     enum:

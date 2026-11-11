@@ -8,17 +8,17 @@ import (
 )
 
 type itemRequest struct {
-	Name     string `json:"name"`
-	Quantity int    `json:"quantity"`
-	Price    int64  `json:"price"`
+	Name     string `json:"name" validate:"required,min=1"`
+	Quantity int    `json:"quantity" validate:"required,min=1"`
+	Price    int64  `json:"price" validate:"required,min=1"`
 }
 
 type createOrderRequest struct {
-	Items []itemRequest `json:"items"`
+	Items []itemRequest `json:"items" validate:"required,min=1"`
 }
 
 type updateStatusRequest struct {
-	Status order.Status `json:"status"`
+	Status order.Status `json:"status" validate:"required,oneof=new processing completed cancelled"`
 }
 
 type itemResponse struct {

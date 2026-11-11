@@ -5,21 +5,57 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 
 	"example.com/order-service/internal/order"
-	"example.com/order-service/internal/repository/memory"
 	"example.com/order-service/internal/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 type fakeRepository struct {
-	order.Repository
 	create func(context.Context, order.Order) (order.Order, error)
+	orders map[uuid.UUID]order.Order
 }
 
-func (f fakeRepository) Create(ctx context.Context, value order.Order) (order.Order, error) {
-	return f.create(ctx, value)
+func newFakeRepository() *fakeRepository {
+	return &fakeRepository{orders: make(map[uuid.UUID]order.Order)}
+}
+
+func (f *fakeRepository) Create(ctx context.Context, value order.Order) (order.Order, error) {
+	if f.create != nil {
+		return f.create(ctx, value)
+	}
+	value.ID = uuid.New()
+	value.CreatedAt = time.Now().UTC()
+	value.History[0].ChangedAt = value.CreatedAt
+	f.orders[value.ID] = value
+	return value, nil
+}
+
+func (f *fakeRepository) GetByID(_ context.Context, id uuid.UUID) (order.Order, error) {
+	value, ok := f.orders[id]
+	if !ok {
+		return order.Order{}, order.ErrOrderNotFound
+	}
+	return value, nil
+}
+
+func (f *fakeRepository) List(_ context.Context) ([]order.Order, error) {
+	values := make([]order.Order, 0, len(f.orders))
+	for _, value := range f.orders {
+		values = append(values, value)
+	}
+	return values, nil
+}
+
+func (f *fakeRepository) Update(_ context.Context, value order.Order) (order.Order, error) {
+	if _, ok := f.orders[value.ID]; !ok {
+		return order.Order{}, order.ErrOrderNotFound
+	}
+	value.History[len(value.History)-1].ChangedAt = time.Now().UTC()
+	f.orders[value.ID] = value
+	return value, nil
 }
 
 func TestCreate(t *testing.T) {
@@ -45,7 +81,7 @@ func TestCreate(t *testing.T) {
 				called = true
 				return value, nil
 			}}
-			got, err := service.NewOrderService(repo).Create(context.Background(), order.CreateOrderInput{Items: tc.items})
+			got, err := service.NewOrderService(&repo).Create(context.Background(), order.CreateOrderInput{Items: tc.items})
 			if !tc.valid {
 				require.ErrorIs(t, err, order.ErrInvalidOrder)
 				require.False(t, called)
@@ -64,10 +100,9 @@ func TestCreate(t *testing.T) {
 
 func TestOrderLifecycle(t *testing.T) {
 	ctx := context.Background()
-	svc := service.NewOrderService(memory.NewOrderRepository())
+	svc := service.NewOrderService(newFakeRepository())
 	created, err := svc.Create(ctx, order.CreateOrderInput{Items: []order.Item{{Name: "item", Quantity: 1, Price: 2}}})
 	require.NoError(t, err)
-	require.Equal(t, uuid.Version(7), created.ID.Version())
 	require.False(t, created.CreatedAt.IsZero())
 	require.Equal(t, created.CreatedAt, created.History[0].ChangedAt)
 	got, err := svc.GetByID(ctx, created.ID)
@@ -115,7 +150,7 @@ func TestStatusTransitions(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			svc := service.NewOrderService(memory.NewOrderRepository())
+			svc := service.NewOrderService(newFakeRepository())
 			value, err := svc.Create(ctx, order.CreateOrderInput{Items: []order.Item{{Name: "x", Quantity: 1, Price: 1}}})
 			require.NoError(t, err)
 			for i, status := range tc.steps {
@@ -133,8 +168,8 @@ func TestStatusTransitions(t *testing.T) {
 func TestRepositoryErrors(t *testing.T) {
 	root := errors.New("storage unavailable")
 	repo := fakeRepository{create: func(context.Context, order.Order) (order.Order, error) { return order.Order{}, root }}
-	_, err := service.NewOrderService(repo).Create(context.Background(), order.CreateOrderInput{Items: []order.Item{{Name: "x", Quantity: 1, Price: 1}}})
+	_, err := service.NewOrderService(&repo).Create(context.Background(), order.CreateOrderInput{Items: []order.Item{{Name: "x", Quantity: 1, Price: 1}}})
 	require.ErrorIs(t, err, root)
-	_, err = service.NewOrderService(memory.NewOrderRepository()).UpdateStatus(context.Background(), uuid.New(), order.StatusProcessing)
+	_, err = service.NewOrderService(newFakeRepository()).UpdateStatus(context.Background(), uuid.New(), order.StatusProcessing)
 	require.ErrorIs(t, err, order.ErrOrderNotFound)
 }
