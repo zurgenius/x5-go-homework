@@ -1,0 +1,233 @@
+basePath: /
+definitions:
+  handler.createOrderRequest:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/handler.itemRequest'
+        type: array
+    type: object
+  handler.errorResponse:
+    properties:
+      code:
+        type: string
+      error:
+        type: string
+    type: object
+  handler.itemRequest:
+    properties:
+      name:
+        type: string
+      price:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  handler.itemResponse:
+    properties:
+      name:
+        type: string
+      price:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  handler.orderResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        format: uuid
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/handler.itemResponse'
+        type: array
+      status:
+        $ref: '#/definitions/order.Status'
+      total_price:
+        type: integer
+    type: object
+  handler.statusChangeResponse:
+    properties:
+      changed_at:
+        type: string
+      status:
+        $ref: '#/definitions/order.Status'
+    type: object
+  handler.updateStatusRequest:
+    properties:
+      status:
+        $ref: '#/definitions/order.Status'
+    type: object
+  order.Status:
+    enum:
+    - new
+    - processing
+    - completed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - StatusNew
+    - StatusProcessing
+    - StatusCompleted
+    - StatusCancelled
+info:
+  contact: {}
+  description: Учебный сервис управления заказами.
+  title: Orders API
+  version: "1.0"
+paths:
+  /api/v1/orders:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.orderResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: List orders
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order items
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.orderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Create order
+  /api/v1/orders/{id}:
+    get:
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.orderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Get order
+  /api/v1/orders/{id}/history:
+    get:
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.statusChangeResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Get order status history
+  /api/v1/orders/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.updateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.orderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Update order status
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+swagger: "2.0"
